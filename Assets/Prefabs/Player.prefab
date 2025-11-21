@@ -13,7 +13,12 @@ GameObject:
   - component: {fileID: 44225685268895425}
   - component: {fileID: 623105120242048417}
   - component: {fileID: 6758866410294482134}
+  - component: {fileID: 699606521952161433}
   - component: {fileID: 602027022768401628}
+  - component: {fileID: 5505562635414116909}
+  - component: {fileID: 3537241271291001612}
+  - component: {fileID: 373959659576112173}
+  - component: {fileID: 4232278578190033009}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -30,10 +35,11 @@ Transform:
   m_GameObject: {fileID: 5158673836400361658}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: 0}
+  m_LocalPosition: {x: 42, y: 51, z: 47}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
-  m_Children: []
+  m_Children:
+  - {fileID: 9002894637158011838}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!33 &8950366824516657944
@@ -129,6 +135,40 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlayerMovement
   canMove: 1
   movementSpeed: 5
+  dashSpeed: 50
+  dashDuration: 0.1
+  dashCooldown: 2
+  dashDamage: 50
+  postDashImmunityTime: 1
+  dashHitbox: {fileID: 4232278578190033009}
+  enemyLayer:
+    serializedVersion: 2
+    m_Bits: 128
+  dashTrail: {fileID: 0}
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 8
+--- !u!135 &699606521952161433
+SphereCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5158673836400361658}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Radius: 5
+  m_Center: {x: 0, y: 0, z: 0}
 --- !u!54 &602027022768401628
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -156,3 +196,116 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 122
   m_CollisionDetection: 1
+--- !u!114 &5505562635414116909
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5158673836400361658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62a4228b310d4ce4c910311e1669d1b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAttack
+  attackPrefab: {fileID: 4688118527169874695, guid: 7719fa4f4c6cfa2439f8a1c117e54d6d, type: 3}
+  attackPoint: {fileID: 9002894637158011838}
+  attackRatio: 1
+--- !u!114 &3537241271291001612
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5158673836400361658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62a4228b310d4ce4c910311e1669d1b1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerAttack
+  attackPrefab: {fileID: 656175244106466173, guid: d6ed2ac58c91a4b46ae5cae1f7737cbf, type: 3}
+  attackPoint: {fileID: 9002894637158011838}
+  attackRatio: 15
+--- !u!114 &373959659576112173
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5158673836400361658}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 14e9ee6ede0243843bbd63a1d54ded9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
+  maxHealth: 100
+  currentHealth: 100
+  defense: 3
+  isAlive: 1
+  isInvincible: 0
+  knockbackForce: 10
+  knockbackTime: 0.2
+  shakeDuration: 0.2
+  shakeForce: 0.3
+  tiltAngle: 15
+  tiltSpeed: 15
+  originalMaterial: {fileID: 2100000, guid: 9c9ae9cad13ee0c42b4359cf2def40eb, type: 2}
+  hitMaterial: {fileID: 2100000, guid: ade2ba89f1e17e240bb076d4f8cc0a8b, type: 2}
+  flashDuration: 0.4
+  currentLevel: 1
+  currentExperience: 0
+  experienceToNextLevel: 100
+  levelMultiplier: 1.2
+  moveSpeed: 5
+--- !u!65 &4232278578190033009
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5158673836400361658}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 2, y: 2, z: 2}
+  m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &8836272918649438530
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 9002894637158011838}
+  m_Layer: 0
+  m_Name: AttackPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &9002894637158011838
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8836272918649438530}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 1}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 7375425867725977330}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

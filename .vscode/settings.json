@@ -66,5 +66,5 @@
     "explorer.fileNesting.patterns": {
         "*.sln": "*.csproj"
     },
-    "dotnet.defaultSolution": "Dam Survivor.slnx"
+    "dotnet.defaultSolution": "dam_survivor_prototype.slnx"
 }

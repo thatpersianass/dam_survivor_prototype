@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 8268183846454107780}
   - component: {fileID: 169059486145744539}
   - component: {fileID: -6705727471516236926}
-  m_Layer: 0
+  m_Layer: 7
   m_Name: Enemy1
   m_TagString: Enemy
   m_Icon: {fileID: 0}
@@ -160,6 +160,10 @@ MonoBehaviour:
   originalMaterial: {fileID: 2100000, guid: c2ee45e6401f36a44ad77a0dd40a61b0, type: 2}
   hitMaterial: {fileID: 2100000, guid: 299a8e45a77229e41a54d82d0776a33c, type: 2}
   flashDuration: 0.2
+  tiltAngle: 25
+  tiltRecoverSpeed: 5
+  shakeDuration: 0.1
+  shakeAmount: 0.05
   animator: {fileID: 0}
   deathAnimationDuration: 1.5
   knockbackDuration: 0.15

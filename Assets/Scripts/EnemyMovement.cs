@@ -9,17 +9,24 @@ public class EnemyMovement : MonoBehaviour
     private PlayerStats playerStats;
 
     [Header("Visual Effects (Daño)")]
-    [Tooltip("Arrastra aquí el material NORMAL del enemigo (con su shader y texturas).")]
     [SerializeField] private Material originalMaterial; 
-    [Tooltip("Arrastra aquí el material de DAÑO.")]
     [SerializeField] private Material hitMaterial; 
     [SerializeField] private float flashDuration = 0.2f;
+
+    [Header("Visual Effects (Hit Anim)")]
+    [SerializeField] private float tiltAngle = 25f; 
+    [SerializeField] private float tiltRecoverSpeed = 5f;
+    private Coroutine tiltCoroutine;
     
-    // --- NUEVO: Referencias para la Animación de Muerte ---
+    // --- NUEVO: Configuración de Temblor de Cámara ---
+    [Header("Visual Effects (Camera Shake)")]
+    [Tooltip("Tiempo que tiembla la pantalla (ej: 0.1 seg)")]
+    [SerializeField] private float shakeDuration = 0.1f;
+    [Tooltip("Fuerza del temblor (ej: 0.2). Cuidado con ponerlo muy alto.")]
+    [SerializeField] private float shakeAmount = 0.2f; 
+
     [Header("Visual Effects (Muerte)")]
-    [Tooltip("Arrastra el componente Animator aquí.")]
     [SerializeField] private Animator animator; 
-    [Tooltip("Tiempo exacto que dura tu animación de muerte (ej: 1.5).")]
     [SerializeField] private float deathAnimationDuration = 1.5f; 
 
     private Renderer enemyRenderer;                     
@@ -50,6 +57,7 @@ public class EnemyMovement : MonoBehaviour
     private int damage;
     private int defense;
     private float speed;
+    private bool isHitAnimating = false; 
 
     void Awake()
     {
@@ -62,8 +70,6 @@ public class EnemyMovement : MonoBehaviour
             speed = Stats.Speed;
         }
         enemyCollider = GetComponent<Collider>();
-        
-        // Si no asignaste el animator manualmente, intentamos buscarlo
         if (animator == null) animator = GetComponentInChildren<Animator>();
     }
 
@@ -85,7 +91,6 @@ public class EnemyMovement : MonoBehaviour
 
     void Update()
     {
-        // Si está muerto o no hay player, no hacemos nada
         if (isDead || player == null) return;
 
         if (attackTimer > 0) attackTimer -= Time.deltaTime;
@@ -94,7 +99,6 @@ public class EnemyMovement : MonoBehaviour
         {
             float distanceToPlayer = Vector3.Distance(transform.position, player.transform.position);
 
-            // Lógica de ataque y movimiento
             if (distanceToPlayer <= attackRange && attackTimer <= 0)
             {
                 AttackPlayer();
@@ -103,18 +107,14 @@ public class EnemyMovement : MonoBehaviour
             {
                 Vector3 direction = (player.transform.position - transform.position).normalized;
                 
-                // Rotación opcional para mirar al jugador
-                if (direction != Vector3.zero)
+                transform.position += direction * speed * Time.deltaTime;
+
+                if (direction != Vector3.zero && !isHitAnimating)
                 {
                     Quaternion toRotation = Quaternion.LookRotation(direction, Vector3.up);
                     transform.rotation = Quaternion.RotateTowards(transform.rotation, toRotation, 720 * Time.deltaTime);
                 }
-
-                transform.position += direction * speed * Time.deltaTime;
             }
-            
-            // Sincronizar animación de caminar (Si tienes un parámetro 'Speed' en el Animator)
-            // if (animator != null) animator.SetFloat("Speed", speed);
         }
     }
 
@@ -125,10 +125,22 @@ public class EnemyMovement : MonoBehaviour
         StopCoroutine("KnockbackRoutine");
         StartCoroutine(KnockbackRoutine());
 
+        // 1. Flash Material
         if (enemyRenderer != null && originalMaterial != null && hitMaterial != null)
         {
             if (flashCoroutine != null) StopCoroutine(flashCoroutine);
             flashCoroutine = StartCoroutine(FlashMaterialRoutine());
+        }
+
+        // 2. Animación de Inclinación
+        if (tiltCoroutine != null) StopCoroutine(tiltCoroutine);
+        tiltCoroutine = StartCoroutine(HitTiltRoutine());
+
+        // 3. --- NUEVO: LLAMAR AL TEMBLOR DE CÁMARA ---
+        // Usamos 'instance' para no tener que arrastrar la cámara a cada enemigo
+        if (CameraFollow.instance != null)
+        {
+            CameraFollow.instance.TriggerShake(shakeDuration, shakeAmount);
         }
 
         int finalDamage = dmg - defense;
@@ -141,25 +153,49 @@ public class EnemyMovement : MonoBehaviour
         }
     }
 
+    // ... [RESTO DEL CÓDIGO IGUAL QUE ANTES] ...
+    // (He omitido los métodos HitTiltRoutine, FlashMaterialRoutine, etc. para ahorrar espacio, 
+    // pero asegúrate de mantenerlos en tu archivo)
+
+    private IEnumerator HitTiltRoutine()
+    {
+        isHitAnimating = true;
+        Quaternion startRot = transform.rotation;
+        Quaternion targetRot = startRot * Quaternion.Euler(-tiltAngle, 0, 0);
+
+        float t = 0;
+        while (t < 1f)
+        {
+            t += Time.deltaTime * 15f; 
+            transform.rotation = Quaternion.Lerp(startRot, targetRot, t);
+            yield return null;
+        }
+        t = 0;
+        while (t < 1f)
+        {
+            t += Time.deltaTime * tiltRecoverSpeed;
+            transform.rotation = Quaternion.Lerp(targetRot, startRot, t);
+            yield return null;
+        }
+        transform.rotation = startRot;
+        isHitAnimating = false;
+    }
+
     private IEnumerator FlashMaterialRoutine()
     {
         float elapsedTime = 0f;
         float halfDuration = flashDuration / 2f; 
-
         while (elapsedTime < halfDuration)
         {
             enemyRenderer.material.Lerp(originalMaterial, hitMaterial, elapsedTime / halfDuration);
-            elapsedTime += Time.deltaTime;
-            yield return null;
+            elapsedTime += Time.deltaTime; yield return null;
         }
         enemyRenderer.material = hitMaterial;
-        
         elapsedTime = 0f;
         while (elapsedTime < halfDuration)
         {
             enemyRenderer.material.Lerp(hitMaterial, originalMaterial, elapsedTime / halfDuration);
-            elapsedTime += Time.deltaTime;
-            yield return null;
+            elapsedTime += Time.deltaTime; yield return null;
         }
         enemyRenderer.material = originalMaterial;
         flashCoroutine = null;
@@ -169,27 +205,22 @@ public class EnemyMovement : MonoBehaviour
     {
         if (playerStats != null)
         {
-            // Opcional: Si tienes animación de ataque
-            // if(animator != null) animator.SetTrigger("Attack");
-            
             attackTimer = attackCooldown;
-            playerStats.TakeDamage(damage);
+            
+            playerStats.TakeDamage(damage, transform.position);
         }
     }
-    
+
     private IEnumerator KnockbackRoutine()
     {
         isKnockedBack = true;
         Vector3 directionToPlayer = (player.transform.position - transform.position).normalized;
         Vector3 knockbackDirection = -directionToPlayer;
-
         float elapsedTime = 0f;
-        while (elapsedTime < knockbackDuration)
-        {
+        while (elapsedTime < knockbackDuration) {
             float t = 1f - (elapsedTime / knockbackDuration);
             transform.position += knockbackDirection * knockbackPower * t * Time.deltaTime;
-            elapsedTime += Time.deltaTime;
-            yield return null;
+            elapsedTime += Time.deltaTime; yield return null;
         }
         isKnockedBack = false;
     }
@@ -197,55 +228,30 @@ public class EnemyMovement : MonoBehaviour
     private void Die()
     {
         isDead = true;
-
-        // 1. Desactivar Collider inmediatamente
         if (enemyCollider != null) enemyCollider.enabled = false;
-
-        // 2. Iniciar secuencia
         StartCoroutine(DeathSequence());
     }
 
-    // --------------------------------------------------------
-    // SECUENCIA DE MUERTE CON ANIMATOR
-    // --------------------------------------------------------
     private IEnumerator DeathSequence()
     {
-        // A. Disparar animación en el Animator
-        if (animator != null)
-        {
-            animator.SetTrigger("Die"); // Asegúrate de crear este Trigger en la ventana Animator
-        }
-
-        // B. Soltar experiencia
+        if (animator != null) animator.SetTrigger("Die"); 
         SpawnLoot();
-
-        // C. Esperar lo que dura la animación (configurado en inspector)
         yield return new WaitForSeconds(deathAnimationDuration);
-
-        // D. (Opcional) Hundirse bajo tierra para desaparecer suavemente
         float sinkTimer = 0f;
-        while (sinkTimer < 2f)
-        {
+        while (sinkTimer < 1.5f) {
             transform.position -= Vector3.up * 1f * Time.deltaTime;
-            sinkTimer += Time.deltaTime;
-            yield return null;
+            sinkTimer += Time.deltaTime; yield return null;
         }
-
-        // E. Destruir
         Destroy(gameObject);
     }
 
     private void SpawnLoot()
     {
-        if (experiencePrefab != null)
-        {
-            for (int i = 0; i < maxDrops; i++)
-            {
-                if (Random.Range(0f, 100f) <= dropChance)
-                {
+        if (experiencePrefab != null) {
+            for (int i = 0; i < maxDrops; i++) {
+                if (Random.Range(0f, 100f) <= dropChance) {
                     Vector3 randomOffset = Random.insideUnitCircle * dropSpread;
                     Vector3 spawnPosition = transform.position + new Vector3(randomOffset.x, 0.5f, randomOffset.y);
-                    
                     GameObject xpInstance = Instantiate(experiencePrefab, spawnPosition, Quaternion.identity);
                     ExperienceGem xpScript = xpInstance.GetComponent<ExperienceGem>();
                     if (xpScript != null) xpScript.SetAmount(experienceAmount);
