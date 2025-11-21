@@ -3,27 +3,21 @@ using UnityEngine.InputSystem;
 
 public class CameraFollow : MonoBehaviour
 {
-    // --- SINGLETON (Acceso Global) ---
     public static CameraFollow instance;
 
     [Header("Target Settings")]
-    [Tooltip("Arrastra aquí a tu Jugador")]
     [SerializeField] private Transform target;
 
     [Header("Offset Settings")]
-    [Tooltip("Posición relativa de la cámara (Altura y distancia)")]
     [SerializeField] private Vector3 offset = new Vector3(0f, 10f, -10f); 
 
-    [Header("Smooth Settings (Movimiento & Lag)")]
-    [Tooltip("Velocidad de seguimiento normal (0.1 = Rápido y pegado)")]
+    [Header("Smooth Settings")]
     [SerializeField] private float normalSmoothTime = 0.1f; 
-    
-    [Tooltip("Velocidad durante el Dash (0.4 = La cámara tarda en llegar)")]
     [SerializeField] private float dashSmoothTime = 0.4f; 
     
-    // Variables internas para el SmoothDamp
     private float currentSmoothTime;
     private Vector3 currentVelocity; 
+    private Vector3 internalPosition; 
 
     [Header("Zoom Settings")]
     [SerializeField] private float scrollSensitivity = 0.005f;
@@ -31,120 +25,101 @@ public class CameraFollow : MonoBehaviour
     [SerializeField] private float minZoom = 5f;
     [SerializeField] private float maxZoom = 15f;
 
-    // Variables de Shake (Temblor)
+    // --- NUEVO: DASH ZOOM ---
+    [Header("Dash Zoom FX")]
+    [Tooltip("Cuánto se aleja la cámara al hacer dash (Ej: 3)")]
+    [SerializeField] private float dashZoomAmount = 2.0f; 
+    [Tooltip("Qué tan rápido entra y sale el zoom (Ej: 5)")]
+    [SerializeField] private float dashZoomSpeed = 5.0f;
+    
+    private float targetDashZoom = 0f;
+    private float currentDashZoom = 0f;
+    // ------------------------
+
     private float shakeTimer;
     private float shakeMagnitude;
 
-    // Variables de Zoom
     private float zoom;
     private float finalZoom;
     private Controls controls; 
 
-    private void Awake()
+    void Awake()
     {
-        // Configuración del Singleton:
-        // Si ya existe una cámara, destruimos esta para no tener duplicados.
-        if (instance == null) 
-        {
-            instance = this;
-        }
-        else 
-        {
-            Destroy(gameObject);
-            return;
-        }
+        if (instance == null) instance = this;
+        else Destroy(gameObject);
 
         controls = new Controls();
     }
     
-    private void OnEnable() 
-    { 
-        if(controls != null) controls.Camera.Enable(); 
-    }
-    
-    private void OnDisable() 
-    { 
-        if(controls != null) controls.Camera.Disable(); 
-    }
+    void OnEnable() { if(controls != null) controls.Camera.Enable(); }
+    void OnDisable() { if(controls != null) controls.Camera.Disable(); }
 
     void Start()
     {
-        // Inicializar zoom en un punto medio
         zoom = (minZoom + maxZoom) / 2f;
         finalZoom = zoom;
-        
-        // Empezamos con la velocidad de seguimiento normal
         currentSmoothTime = normalSmoothTime;
         
-        // Si se te olvidó asignar el target, intentamos buscar al Player
         if (target == null)
         {
             GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
             if (playerObj != null) target = playerObj.transform;
         }
+        internalPosition = transform.position;
     }
 
-    // ---------------------------------------------------------
-    // MÉTODOS PÚBLICOS (Llamados por otros scripts)
-    // ---------------------------------------------------------
-
-    // Activa o desactiva el "Lag" de la cámara (Llamado por PlayerMove en el Dash)
     public void SetDashLag(bool isDashing)
     {
-        if (isDashing)
-            currentSmoothTime = dashSmoothTime; // Modo lento/perezoso
-        else
-            currentSmoothTime = normalSmoothTime; // Modo normal
+        currentSmoothTime = isDashing ? dashSmoothTime : normalSmoothTime;
+        
+        // --- ACTIVAR ZOOM ---
+        // Si hacemos dash, el objetivo es dashZoomAmount. Si no, es 0.
+        targetDashZoom = isDashing ? dashZoomAmount : 0f;
     }
 
-    // Activa el temblor de pantalla (Llamado por EnemyMovement o PlayerStats)
     public void TriggerShake(float duration, float magnitude)
     {
         shakeTimer = duration;
         shakeMagnitude = magnitude;
     }
 
-    // ---------------------------------------------------------
-    // LÓGICA DE SEGUIMIENTO
-    // ---------------------------------------------------------
     private void LateUpdate()
     {
         if (target == null) return;
 
-        // 1. CÁLCULO DE ZOOM
+        // 1. ZOOM MANUAL (Rueda del ratón)
         float scrollDelta = controls.Camera.Zoom.ReadValue<float>(); 
-        
-        // Solo recalculamos si se mueve la rueda
         if (Mathf.Abs(scrollDelta) > 0.001f)
         {
             finalZoom -= scrollDelta * scrollSensitivity; 
             finalZoom = Mathf.Clamp(finalZoom, minZoom, maxZoom);
         }
-
-        // Suavizado del Zoom
-        float leftDistance = finalZoom - zoom;
-        float distance2Move = leftDistance  * zoomSpeed * Time.deltaTime; 
-        zoom += distance2Move;
+        zoom += (finalZoom - zoom) * zoomSpeed * Time.deltaTime;
         
-        // 2. CALCULAR POSICIÓN OBJETIVO (Sin Temblor aún)
-        // Posición del jugador + (Dirección del offset * Distancia de zoom)
-        Vector3 targetPosition = target.position + offset.normalized * zoom;
+        // 2. ZOOM AUTOMÁTICO (DASH) - Interpolación suave
+        currentDashZoom = Mathf.Lerp(currentDashZoom, targetDashZoom, dashZoomSpeed * Time.deltaTime);
 
-        // 3. APLICAR SHAKE (TEMBLOR)
-        if (shakeTimer > 0)
-        {
-            // Añadimos un desplazamiento aleatorio a la posición destino
-            targetPosition += Random.insideUnitSphere * shakeMagnitude;
-            shakeTimer -= Time.deltaTime;
-        }
+        // 3. CALCULAR POSICIÓN DESTINO
+        // Sumamos el Zoom Manual + el Zoom del Dash
+        float totalZoom = zoom + currentDashZoom;
+        
+        Vector3 targetPosition = target.position + offset.normalized * totalZoom;
 
-        // 4. MOVIMIENTO FINAL (SMOOTHDAMP)
-        // Aquí es donde ocurre la magia del "Lag" y el movimiento fluido
-        transform.position = Vector3.SmoothDamp(
-            transform.position, 
+        // 4. MOVIMIENTO SUAVE
+        internalPosition = Vector3.SmoothDamp(
+            internalPosition, 
             targetPosition, 
             ref currentVelocity, 
             currentSmoothTime
         );
+
+        // 5. APLICAR TEMBLOR Y ASIGNAR
+        Vector3 finalPosition = internalPosition;
+        if (shakeTimer > 0)
+        {
+            finalPosition += Random.insideUnitSphere * shakeMagnitude;
+            shakeTimer -= Time.deltaTime;
+        }
+        transform.position = finalPosition;
     }
 }
